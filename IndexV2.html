@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FEM Trucking – Dispatch to Invoice</title>
+  <style>
+    :root { --pad: 12px; --radius: 12px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background:#f6f7f8; color:#111; }
+    header { position: sticky; top:0; background:#111; color:#fff; padding: 14px var(--pad); z-index: 10; }
+    header h1 { margin:0; font-size: 16px; font-weight: 700; letter-spacing: .2px; }
+    header .sub { opacity:.85; font-size: 12px; margin-top: 2px; }
+    main { padding: var(--pad); max-width: 1100px; margin: 0 auto; }
+    .tabs { display:flex; gap: 8px; margin: 10px 0 14px; flex-wrap: wrap; }
+    .tabbtn { border: 1px solid #ddd; background:#fff; padding: 10px 12px; border-radius: 999px; font-weight: 600; cursor:pointer; }
+    .tabbtn.active { background:#111; color:#fff; border-color:#111; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius: var(--radius); padding: 14px; box-shadow: 0 1px 0 rgba(0,0,0,.03); margin-bottom: 12px; }
+    .row { display:grid; gap:10px; }
+    @media(min-width: 880px){ .row.cols2{ grid-template-columns: 1fr 1fr; } }
+    @media(min-width: 880px){ .row.cols3{ grid-template-columns: 1fr 1fr 1fr; } }
+    @media(min-width: 880px){ .row.cols4{ grid-template-columns: 1fr 1fr 1fr 1fr; } }
+    label { display:block; font-size: 12px; font-weight: 700; color:#333; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 10px; border-radius: 10px; border:1px solid #d1d5db; background:#fff;
+      font-size: 14px;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .actions { display:flex; gap:10px; flex-wrap: wrap; }
+    button {
+      padding: 10px 12px; border-radius: 12px; border:1px solid #d1d5db; background:#fff; cursor:pointer; font-weight: 700;
+    }
+    button.primary { background:#111; color:#fff; border-color:#111; }
+    button.danger { background:#b91c1c; color:#fff; border-color:#b91c1c; }
+    button.ghost { background:transparent; padding: 6px 10px; border-radius: 999px; }
+    .muted { color:#6b7280; font-size: 12px; }
+    .tablewrap { overflow:auto; border-radius: 12px; border:1px solid #e5e7eb; }
+    table { width: 100%; border-collapse: collapse; min-width: 980px; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { font-size: 12px; text-align:left; background:#fafafa; position: sticky; top: 0; z-index: 2; }
+    td input, td select { padding: 8px; border-radius: 10px; }
+    .right { text-align:right; }
+    .pill { display:inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background:#f3f4f6; border:1px solid #e5e7eb; }
+    .kpi { display:flex; gap:10px; flex-wrap:wrap; }
+    .kpi .pill strong { margin-left: 6px; }
+    .imggrid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
+    @media(min-width: 880px){ .imggrid{ grid-template-columns: repeat(4, minmax(0,1fr)); } }
+    .thumb { border:1px solid #e5e7eb; border-radius: 12px; overflow:hidden; background:#fff; }
+    .thumb img { width:100%; height: 140px; object-fit: cover; display:block; }
+    .thumb .meta { padding: 8px; font-size: 12px; color:#374151; display:flex; justify-content: space-between; gap:8px; align-items:center; }
+    .warn { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding: 10px; border-radius: 12px; font-weight: 700; }
+    .ok { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; padding: 10px; border-radius: 12px; font-weight: 700; }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>FEM Trucking – Dispatch to Invoice</h1>
+  <div class="sub">Invoice Sheet + Driver Logbook • Offline save • CSV export</div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tabbtn active" data-tab="invoice">Invoice Sheet</button>
+    <button class="tabbtn" data-tab="logbook">Driver Logbook</button>
+    <button class="tabbtn" data-tab="photos">Tickets & Receipts</button>
+    <button class="tabbtn" data-tab="settings">Settings</button>
+  </div>
+
+  <section id="invoice" class="tab">
+    <div class="card">
+      <div class="row cols3">
+        <div>
+          <label>Driver</label>
+          <input id="inv_driver" placeholder="Driver name" />
+        </div>
+        <div>
+          <label>Truck</label>
+          <input id="inv_truck" placeholder="Truck # / Unit #" />
+        </div>
+        <div>
+          <label>Invoice Week / Notes</label>
+          <input id="inv_week" placeholder="Optional (e.g., Week of 02/12)" />
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="row cols2">
+        <div>
+          <label>Contractor / Customer (default)</label>
+          <input id="inv_default_contractor" placeholder="Optional default for new rows" />
+        </div>
+        <div>
+          <label>Location → Destination (default)</label>
+          <input id="inv_default_route" placeholder="Optional (e.g., Brontek → 1130 Mount Sharp)" />
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="kpi">
+        <span class="pill">Rows <strong id="kpi_rows">0</strong></span>
+        <span class="pill">Hours <strong id="kpi_hours">0.00</strong></span>
+        <span class="pill">Loads <strong id="kpi_loads">0</strong></span>
+        <span class="pill">Tons <strong id="kpi_tons">0.00</strong></span>
+        <span class="pill">Subtotal <strong id="kpi_subtotal">$0.00</strong></span>
+        <span class="pill">% Fee <strong id="kpi_fee">$0.00</strong></span>
+        <span class="pill">Total Due <strong id="kpi_totaldue">$0.00</strong></span>
+      </div>
+
+      <div class="muted" style="margin-top:10px;">
+        Tip: You won’t always fill every box—often it’s what was hauled + the rate, then totals must match notes/tickets. Optional % fee is for broker/quick-pay situations. Mileage belongs in Logbook.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="actions">
+        <button class="primary" id="add_row_btn">+ Add Line</button>
+        <button id="dup_last_btn">Duplicate Last</button>
+        <button id="clear_lines_btn" class="danger">Clear Lines</button>
+        <button id="export_invoice_btn">Export Invoice CSVs</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">Billing Basis: choose how the line total is calculated (hours, loads, tons, haul-offs, or flat).</div>
+
+      <div style="height:12px"></div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Ticket #</th>
+              <th>Contractor</th>
+              <th>Location / Destination</th>
+              <th>Basis</th>
+              <th class="right">Haul Offs</th>
+              <th class="right">Loads</th>
+              <th class="right">Tons</th>
+              <th class="right">Hours</th>
+              <th class="right">Rate</th>
+              <th class="right">Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inv_tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row cols4">
+        <div>
+          <label>% Fee (optional)</label>
+          <input id="inv_fee_pct" type="number" min="0" step="0.01" placeholder="e.g., 10 for 10%" />
+          <div class="muted">Leave blank if no broker/quick-pay deduction.</div>
+        </div>
+        <div>
+          <label>Fee applies to</label>
+          <select id="inv_fee_mode">
+            <option value="subtotal">Subtotal (recommended)</option>
+            <option value="hours_only">Hours lines only</option>
+            <option value="loads_only">Load/Haul/Ton lines only</option>
+          </select>
+        </div>
+        <div>
+          <label>Hours Override (optional)</label>
+          <input id="inv_hours_override" type="number" min="0" step="0.01" placeholder="If you want bottom HRS filled" />
+        </div>
+        <div>
+          <label>8-hour minimum toggle</label>
+          <select id="inv_min8">
+            <option value="off">Off</option>
+            <option value="on">On (if hours &lt; 8, bill 8)</option>
+          </select>
+          <div class="muted">Use only for jobs that require an 8-hour minimum.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="inv_validation" class="card" style="display:none;"></div>
+  </section>
+
+  <section id="logbook" class="tab" style="display:none;">
+    <div class="card">
+      <div class="row cols3">
+        <div>
+          <label>Driver</label>
+          <input id="log_driver" placeholder="Driver name" />
+        </div>
+        <div>
+          <label>Truck #</label>
+          <input id="log_truck" placeholder="Truck # / Unit #" />
+        </div>
+        <div>
+          <label>Notes (optional)</label>
+          <input id="log_notes" placeholder="Optional" />
+        </div>
+      </div>
+      <div class="muted" style="margin-top:10px;">
+        Logbook is for mileage/time proof (DOT stops) and documentation (audits/accidents).
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="actions">
+        <button class="primary" id="add_log_row_btn">+ Add Log Row</button>
+        <button id="clear_log_btn" class="danger">Clear Log Rows</button>
+        <button id="export_log_btn">Export Logbook CSV</button>
+      </div>
+      <div style="height:12px"></div>
+
+      <div class="tablewrap">
+        <table style="min-width: 980px;">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Truck No</th>
+              <th class="right">Diesel ($)</th>
+              <th class="right">Mileage Start</th>
+              <th class="right">Mileage Finish</th>
+              <th>Start Time</th>
+              <th>End Time</th>
+              <th class="right">Total Hours</th>
+              <th class="right">Total Miles</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="log_tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="log_validation" class="card" style="display:none;"></div>
+  </section>
+
+  <section id="photos" class="tab" style="display:none;">
+    <div class="card">
+      <div class="row cols3">
+        <div>
+          <label>Attach ticket/receipt photo</label>
+          <input id="photo_input" type="file" accept="image/*" capture="environment" />
+          <div class="muted">Saved locally on this device (v1).</div>
+        </div>
+        <div>
+          <label>Tag</label>
+          <input id="photo_tag" placeholder="e.g., Vulcan ticket, Fuel receipt, Haul-off pic" />
+        </div>
+        <div>
+          <label>Related (optional)</label>
+          <input id="photo_related" placeholder="Ticket # or Date" />
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="actions">
+        <button class="primary" id="save_photo_btn">Save Photo</button>
+        <button class="danger" id="clear_photos_btn">Clear Photos</button>
+        <button id="export_photos_index_btn">Export Photos Index CSV</button>
+      </div>
+      <div class="muted" style="margin-top:10px;">
+        Scan/store receipts and tickets for audits and accident documentation.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="imggrid" id="photo_grid"></div>
+      <div class="muted" style="margin-top:10px;">Photos are thumbnails stored in localStorage. Production version should use cloud storage.</div>
+    </div>
+  </section>
+
+  <section id="settings" class="tab" style="display:none;">
+    <div class="card">
+      <div class="row cols2">
+        <div>
+          <label>Company</label>
+          <input id="set_company" placeholder="FEM Trucking" />
+        </div>
+        <div>
+          <label>Default currency</label>
+          <select id="set_currency">
+            <option value="USD">USD</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="row cols2">
+        <div>
+          <label>Data controls</label>
+          <div class="actions">
+            <button id="backup_btn">Download Backup JSON</button>
+            <button id="restore_btn">Restore Backup JSON</button>
+            <input id="restore_file" type="file" accept="application/json" style="display:none;" />
+          </div>
+          <div class="muted">Backup is helpful before big edits.</div>
+        </div>
+        <div>
+          <label>Reset everything</label>
+          <button class="danger" id="reset_all_btn">Reset App Data</button>
+          <div class="muted">Clears invoice lines, logbook, and photos from this browser.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="warn small">
+        v1 is local-only. Next step: add cloud sync so drivers can submit from phones and admin can export centrally.
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const STORAGE_KEY = "fem_app_v1";
+
+const state = loadState() || {
+  settings: { company: "FEM Trucking", currency: "USD" },
+  invoice: {
+    driver: "",
+    truck: "",
+    week: "",
+    defaultContractor: "",
+    defaultRoute: "",
+    feePct: "",
+    feeMode: "subtotal",
+    hoursOverride: "",
+    min8: "off",
+    lines: []
+  },
+  logbook: {
+    driver: "",
+    truck: "",
+    notes: "",
+    rows: []
+  },
+  photos: []
+};
+
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function loadState(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); }
+  catch { return null; }
+}
+
+function money(n){
+  const v = Number(n || 0);
+  return v.toLocaleString(undefined, { style:"currency", currency: state.settings.currency || "USD" });
+}
+function num(n){ return Number(n || 0); }
+function round2(n){ return Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100; }
+function uid(){ return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+
+/** Tabs */
+document.querySelectorAll(".tabbtn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tabbtn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".tab").forEach(sec=>sec.style.display="none");
+    document.getElementById(tab).style.display="block";
+  });
+});
+
+/** Debounce timers */
+let invValidateTimer = null;
+function scheduleInvoiceValidation(){
+  if(invValidateTimer) clearTimeout(invValidateTimer);
+  invValidateTimer = setTimeout(()=> renderInvoiceValidation(), 150);
+}
+let logValidateTimer = null;
+function scheduleLogValidation(){
+  if(logValidateTimer) clearTimeout(logValidateTimer);
+  logValidateTimer = setTimeout(()=> renderLogValidation(), 150);
+}
+
+/** Bind invoice header fields */
+const inv_driver = byId("inv_driver");
+const inv_truck = byId("inv_truck");
+const inv_week = byId("inv_week");
+const inv_default_contractor = byId("inv_default_contractor");
+const inv_default_route = byId("inv_default_route");
+const inv_fee_pct = byId("inv_fee_pct");
+const inv_fee_mode = byId("inv_fee_mode");
+const inv_hours_override = byId("inv_hours_override");
+const inv_min8 = byId("inv_min8");
+
+inv_driver.value = state.invoice.driver;
+inv_truck.value = state.invoice.truck;
+inv_week.value = state.invoice.week;
+inv_default_contractor.value = state.invoice.defaultContractor;
+inv_default_route.value = state.invoice.defaultRoute;
+inv_fee_pct.value = state.invoice.feePct;
+inv_fee_mode.value = state.invoice.feeMode;
+inv_hours_override.value = state.invoice.hoursOverride;
+inv_min8.value = state.invoice.min8;
+
+inv_driver.addEventListener("input", e=>{ state.invoice.driver = e.target.value; saveState(); scheduleInvoiceValidation(); });
+inv_truck.addEventListener("input", e=>{ state.invoice.truck = e.target.value; saveState(); scheduleInvoiceValidation(); });
+inv_week.addEventListener("input", e=>{ state.invoice.week = e.target.value; saveState(); });
+inv_default_contractor.addEventListener("input", e=>{ state.invoice.defaultContractor = e.target.value; saveState(); });
+inv_default_route.addEventListener("input", e=>{ state.invoice.defaultRoute = e.target.value; saveState(); });
+inv_fee_pct.addEventListener("input", e=>{ state.invoice.feePct = e.target.value; saveState(); renderInvoiceKPIs(); scheduleInvoiceValidation(); });
+inv_fee_mode.addEventListener("change", e=>{ state.invoice.feeMode = e.target.value; saveState(); renderInvoiceKPIs(); scheduleInvoiceValidation(); });
+inv_hours_override.addEventListener("input", e=>{ state.invoice.hoursOverride = e.target.value; saveState(); renderInvoiceKPIs(); scheduleInvoiceValidation(); });
+inv_min8.addEventListener("change", e=>{ state.invoice.min8 = e.target.value; saveState(); renderInvoiceKPIs(); rerenderInvoiceTotalsOnly(); scheduleInvoiceValidation(); });
+
+/** Logbook header */
+const log_driver = byId("log_driver");
+const log_truck = byId("log_truck");
+const log_notes = byId("log_notes");
+log_driver.value = state.logbook.driver;
+log_truck.value = state.logbook.truck;
+log_notes.value = state.logbook.notes;
+
+log_driver.addEventListener("input", e=>{ state.logbook.driver = e.target.value; saveState(); scheduleLogValidation(); });
+log_truck.addEventListener("input", e=>{ state.logbook.truck = e.target.value; saveState(); scheduleLogValidation(); });
+log_notes.addEventListener("input", e=>{ state.logbook.notes = e.target.value; saveState(); });
+
+/** Settings */
+byId("set_company").value = state.settings.company || "FEM Trucking";
+byId("set_currency").value = state.settings.currency || "USD";
+byId("set_company").addEventListener("input", e=>{ state.settings.company = e.target.value; saveState(); });
+byId("set_currency").addEventListener("change", e=>{ state.settings.currency = e.target.value; saveState(); renderInvoiceKPIs(); rerenderInvoiceTotalsOnly(); });
+
+/** -------- INVOICE (FIXED: no re-render on each keystroke) -------- */
+const inv_tbody = byId("inv_tbody");
+
+function defaultNewLine(){
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,"0");
+  const d = String(today.getDate()).padStart(2,"0");
+  return {
+    id: uid(),
+    date: `${y}-${m}-${d}`,
+    ticket: "",
+    contractor: state.invoice.defaultContractor || "",
+    route: state.invoice.defaultRoute || "",
+    basis: "loads",
+    hauloffs: "",
+    loads: "",
+    tons: "",
+    hours: "",
+    rate: "",
+    total: 0
+  };
+}
+
+function calcLineTotal(line){
+  const rate = num(line.rate);
+  let qty = 0;
+
+  if(line.basis === "hours"){
+    qty = num(line.hours);
+    if(state.invoice.min8 === "on" && qty > 0 && qty < 8) qty = 8;
+    return round2(rate * qty);
+  }
+  if(line.basis === "loads"){
+    qty = num(line.loads);
+    return round2(rate * qty);
+  }
+  if(line.basis === "tons"){
+    qty = num(line.tons);
+    return round2(rate * qty);
+  }
+  if(line.basis === "hauloffs"){
+    qty = num(line.hauloffs);
+    return round2(rate * qty);
+  }
+  return round2(rate); // flat
+}
+
+function renderInvoice(){
+  inv_tbody.innerHTML = "";
+
+  state.invoice.lines.forEach((line, idx)=>{
+    line.total = calcLineTotal(line);
+
+    const tr = document.createElement("tr");
+    tr.dataset.lineId = line.id;
+
+    // Total cell (we keep reference so we can update without rebuild)
+    const totalTd = document.createElement("td");
+    totalTd.className = "right";
+    totalTd.style.fontWeight = "800";
+    totalTd.textContent = money(line.total);
+
+    tr.appendChild(invTdInputNoRerender(line, "date", "date", "", ()=> { rerenderInvoiceRowTotal(line.id); }));
+    tr.appendChild(invTdInputNoRerender(line, "ticket", "text", "Ticket #", ()=> { scheduleInvoiceValidation(); }));
+    tr.appendChild(invTdInputNoRerender(line, "contractor", "text", "Contractor", ()=> { scheduleInvoiceValidation(); }));
+    tr.appendChild(invTdInputNoRerender(line, "route", "text", "Location / Destination", ()=> { scheduleInvoiceValidation(); }));
+
+    tr.appendChild(invTdSelectNoRerender(line, "basis", [
+      ["hours","Hours"], ["loads","Loads"], ["tons","Tons"], ["hauloffs","Haul Offs"], ["flat","Flat"]
+    ], ()=> { rerenderInvoiceRowTotal(line.id); }));
+
+    tr.appendChild(invTdRightInputNoRerender(line, "hauloffs", "number", "0", "1", ()=> { rerenderInvoiceRowTotal(line.id); }));
+    tr.appendChild(invTdRightInputNoRerender(line, "loads", "number", "0", "1", ()=> { rerenderInvoiceRowTotal(line.id); }));
+    tr.appendChild(invTdRightInputNoRerender(line, "tons", "number", "0", "0.01", ()=> { rerenderInvoiceRowTotal(line.id); }));
+    tr.appendChild(invTdRightInputNoRerender(line, "hours", "number", "0", "0.25", ()=> { rerenderInvoiceRowTotal(line.id); }));
+    tr.appendChild(invTdRightInputNoRerender(line, "rate", "number", "0", "0.01", ()=> { rerenderInvoiceRowTotal(line.id); }));
+
+    tr.appendChild(totalTd);
+
+    const actTd = document.createElement("td");
+
+    const up = document.createElement("button");
+    up.className = "ghost";
+    up.textContent = "Up";
+    up.disabled = idx === 0;
+    up.addEventListener("click", ()=>{
+      if(idx===0) return;
+      const arr = state.invoice.lines;
+      [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+      saveState();
+      renderInvoice();
+      renderInvoiceKPIs();
+      renderInvoiceValidation();
+    });
+
+    const down = document.createElement("button");
+    down.className = "ghost";
+    down.textContent = "Down";
+    down.disabled = idx === state.invoice.lines.length - 1;
+    down.addEventListener("click", ()=>{
+      const arr = state.invoice.lines;
+      if(idx >= arr.length-1) return;
+      [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
+      saveState();
+      renderInvoice();
+      renderInvoiceKPIs();
+      renderInvoiceValidation();
+    });
+
+    const del = document.createElement("button");
+    del.className = "ghost";
+    del.textContent = "Delete";
+    del.addEventListener("click", ()=>{
+      state.invoice.lines = state.invoice.lines.filter(x=>x.id !== line.id);
+      saveState();
+      renderInvoice();
+      renderInvoiceKPIs();
+      renderInvoiceValidation();
+    });
+
+    actTd.appendChild(up);
+    actTd.appendChild(down);
+    actTd.appendChild(del);
+    tr.appendChild(actTd);
+
+    inv_tbody.appendChild(tr);
+  });
+
+  renderInvoiceKPIs();
+  renderInvoiceValidation();
+}
+
+function invTdInputNoRerender(line, key, type, placeholder="", afterChange=null){
+  const td = document.createElement("td");
+  const inp = document.createElement("input");
+  inp.type = type;
+  if(placeholder) inp.placeholder = placeholder;
+  inp.value = line[key] ?? "";
+  inp.addEventListener("input", e=>{
+    line[key] = e.target.value;
+    saveState();
+    if(afterChange) afterChange();
+    renderInvoiceKPIs();
+    scheduleInvoiceValidation();
+  });
+  td.appendChild(inp);
+  return td;
+}
+
+function invTdRightInputNoRerender(line, key, type, placeholder="0", step="1", afterChange=null){
+  const td = document.createElement("td");
+  td.className = "right";
+  const inp = document.createElement("input");
+  inp.type = type;
+  inp.placeholder = placeholder;
+  inp.step = step;
+  inp.value = line[key] ?? "";
+  inp.addEventListener("input", e=>{
+    line[key] = e.target.value;
+    saveState();
+    if(afterChange) afterChange();
+    // KPIs handled in rerenderInvoiceRowTotal (but safe to refresh)
+    // (do not rebuild table)
+  });
+  td.appendChild(inp);
+  return td;
+}
+
+function invTdSelectNoRerender(line, key, options, afterChange=null){
+  const td = document.createElement("td");
+  const sel = document.createElement("select");
+  options.forEach(([val, label])=>{
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  });
+  sel.value = line[key] ?? options[0][0];
+  sel.addEventListener("change", e=>{
+    line[key] = e.target.value;
+    saveState();
+    if(afterChange) afterChange();
+    scheduleInvoiceValidation();
+  });
+  td.appendChild(sel);
+  return td;
+}
+
+/** Update one row total + refresh KPIs/validation without rebuilding the table */
+function rerenderInvoiceRowTotal(lineId){
+  const line = state.invoice.lines.find(l=>l.id === lineId);
+  if(!line) return;
+
+  line.total = calcLineTotal(line);
+
+  const tr = inv_tbody.querySelector(`tr[data-line-id="${CSS.escape(lineId)}"]`);
+  if(tr){
+    const totalCell = tr.children[10]; // Total column index in this table
+    if(totalCell) totalCell.textContent = money(line.total);
+  }
+
+  saveState();
+  renderInvoiceKPIs();
+  scheduleInvoiceValidation();
+}
+
+/** When a global setting changes (currency/min8), refresh totals cells only */
+function rerenderInvoiceTotalsOnly(){
+  state.invoice.lines.forEach(l=>{
+    l.total = calcLineTotal(l);
+    const tr = inv_tbody.querySelector(`tr[data-line-id="${CSS.escape(l.id)}"]`);
+    if(tr){
+      const totalCell = tr.children[10];
+      if(totalCell) totalCell.textContent = money(l.total);
+    }
+  });
+  saveState();
+  renderInvoiceKPIs();
+  scheduleInvoiceValidation();
+}
+
+function renderInvoiceKPIs(){
+  const lines = state.invoice.lines;
+  const hoursSumRaw = round2(lines.reduce((a,l)=>a + num(l.hours), 0));
+  const loadsSum = lines.reduce((a,l)=>a + Math.round(num(l.loads)), 0);
+  const tonsSum = round2(lines.reduce((a,l)=>a + num(l.tons), 0));
+  const subtotal = round2(lines.reduce((a,l)=>a + calcLineTotal(l), 0));
+
+  let hoursForFooter = hoursSumRaw;
+  if(String(state.invoice.hoursOverride || "").trim() !== "") hoursForFooter = round2(num(state.invoice.hoursOverride));
+
+  const feePct = num(state.invoice.feePct);
+  let feeBase = subtotal;
+  if(state.invoice.feeMode === "hours_only"){
+    feeBase = round2(lines.filter(l=>l.basis==="hours").reduce((a,l)=>a + calcLineTotal(l), 0));
+  } else if(state.invoice.feeMode === "loads_only"){
+    feeBase = round2(lines.filter(l=>l.basis!=="hours").reduce((a,l)=>a + calcLineTotal(l), 0));
+  }
+  const fee = round2(feeBase * (feePct/100));
+  const totalDue = round2(subtotal - fee);
+
+  byId("kpi_rows").textContent = String(lines.length);
+  byId("kpi_hours").textContent = hoursForFooter.toFixed(2);
+  byId("kpi_loads").textContent = String(loadsSum);
+  byId("kpi_tons").textContent = tonsSum.toFixed(2);
+  byId("kpi_subtotal").textContent = money(subtotal);
+  byId("kpi_fee").textContent = money(fee);
+  byId("kpi_totaldue").textContent = money(totalDue);
+}
+
+function renderInvoiceValidation(){
+  const box = byId("inv_validation");
+  const msgs = [];
+
+  if(!String(state.invoice.driver || "").trim()) msgs.push("Invoice: Driver is blank.");
+  if(!String(state.invoice.truck || "").trim()) msgs.push("Invoice: Truck is blank.");
+
+  state.invoice.lines.forEach((l, i)=>{
+    const lineNo = i+1;
+    if(!String(l.date||"").trim()) msgs.push(`Line ${lineNo}: Date missing.`);
+    if(!String(l.contractor||"").trim()) msgs.push(`Line ${lineNo}: Contractor missing.`);
+    if(!String(l.route||"").trim()) msgs.push(`Line ${lineNo}: Location/Destination missing.`);
+    if(String(l.rate||"").trim()==="") msgs.push(`Line ${lineNo}: Rate missing.`);
+
+    if(l.basis==="hours" && num(l.hours) <= 0) msgs.push(`Line ${lineNo}: Basis is Hours but Hours is 0.`);
+    if(l.basis==="loads" && num(l.loads) <= 0) msgs.push(`Line ${lineNo}: Basis is Loads but Loads is 0.`);
+    if(l.basis==="tons" && num(l.tons) <= 0) msgs.push(`Line ${lineNo}: Basis is Tons but Tons is 0.`);
+    if(l.basis==="hauloffs" && num(l.hauloffs) <= 0) msgs.push(`Line ${lineNo}: Basis is Haul Offs but Haul Offs is 0.`);
+  });
+
+  if(msgs.length === 0){
+    box.style.display = "block";
+    box.className = "card ok";
+    box.innerHTML = "All checks passed.";
+  } else {
+    box.style.display = "block";
+    box.className = "card warn";
+    box.innerHTML = "<div style='font-weight:900; margin-bottom:8px;'>Checks to review</div><ul style='margin:0; padding-left:18px; font-weight:700;'>" +
+      msgs.map(m=>`<li>${escapeHtml(m)}</li>`).join("") + "</ul>";
+  }
+}
+
+byId("add_row_btn").addEventListener("click", ()=>{
+  state.invoice.lines.push(defaultNewLine());
+  saveState();
+  renderInvoice();
+});
+
+byId("dup_last_btn").addEventListener("click", ()=>{
+  const last = state.invoice.lines[state.invoice.lines.length-1];
+  const nl = defaultNewLine();
+  if(last){
+    Object.assign(nl, { contractor: last.contractor, route: last.route, basis: last.basis, rate: last.rate });
+  }
+  state.invoice.lines.push(nl);
+  saveState();
+  renderInvoice();
+});
+
+byId("clear_lines_btn").addEventListener("click", ()=>{
+  if(!confirm("Clear ALL invoice lines?")) return;
+  state.invoice.lines = [];
+  saveState();
+  renderInvoice();
+});
+
+/** Invoice CSV export */
+byId("export_invoice_btn").addEventListener("click", ()=>{
+  const lines = state.invoice.lines;
+  const subtotal = round2(lines.reduce((a,l)=>a + calcLineTotal(l), 0));
+  const feePct = num(state.invoice.feePct);
+  let feeBase = subtotal;
+  if(state.invoice.feeMode === "hours_only"){
+    feeBase = round2(lines.filter(l=>l.basis==="hours").reduce((a,l)=>a + calcLineTotal(l), 0));
+  } else if(state.invoice.feeMode === "loads_only"){
+    feeBase = round2(lines.filter(l=>l.basis!=="hours").reduce((a,l)=>a + calcLineTotal(l), 0));
+  }
+  const fee = round2(feeBase * (feePct/100));
+  const totalDue = round2(subtotal - fee);
+  const hoursSumRaw = round2(lines.reduce((a,l)=>a + num(l.hours), 0));
+  let hoursFooter = hoursSumRaw;
+  if(String(state.invoice.hoursOverride||"").trim() !== "") hoursFooter = round2(num(state.invoice.hoursOverride));
+
+  const invoiceId = `${(state.invoice.truck||"TRUCK").replace(/\\s+/g,"_")}_${(state.invoice.driver||"DRIVER").replace(/\\s+/g,"_")}_${new Date().toISOString().slice(0,10)}`;
+
+  const headerRows = [{
+    invoice_id: invoiceId,
+    company: state.settings.company,
+    driver: state.invoice.driver,
+    truck: state.invoice.truck,
+    week: state.invoice.week,
+    line_count: lines.length,
+    hours_footer: hoursFooter,
+    subtotal: subtotal,
+    fee_pct: feePct,
+    fee_mode: state.invoice.feeMode,
+    fee_amount: fee,
+    total_due: totalDue,
+    exported_at: new Date().toISOString()
+  }];
+
+  const lineRows = lines.map((l, i)=>({
+    invoice_id: invoiceId,
+    line_no: i+1,
+    date: l.date,
+    ticket_no: l.ticket,
+    contractor: l.contractor,
+    location_destination: l.route,
+    basis: l.basis,
+    haul_offs: num(l.hauloffs),
+    loads: num(l.loads),
+    tons: num(l.tons),
+    hours: num(l.hours),
+    rate: num(l.rate),
+    line_total: calcLineTotal(l)
+  }));
+
+  downloadCSV(`invoice_${invoiceId}_header.csv`, headerRows);
+  downloadCSV(`invoice_${invoiceId}_lines.csv`, lineRows);
+});
+
+/** -------- LOGBOOK (smooth typing) -------- */
+const log_tbody = byId("log_tbody");
+
+function defaultLogRow(){
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,"0");
+  const d = String(today.getDate()).padStart(2,"0");
+  return {
+    id: uid(),
+    date: `${y}-${m}-${d}`,
+    truckNo: state.logbook.truck || "",
+    diesel: "",
+    mileageStart: "",
+    mileageFinish: "",
+    startTime: "",
+    endTime: "",
+    totalHours: "",
+    totalMiles: 0
+  };
+}
+
+function calcMiles(r){
+  const ms = num(r.mileageStart);
+  const mf = num(r.mileageFinish);
+  if(ms > 0 && mf > 0 && mf >= ms) return round2(mf - ms);
+  return 0;
+}
+
+function renderLogbook(){
+  log_tbody.innerHTML = "";
+
+  state.logbook.rows.forEach((r)=>{
+    r.totalMiles = calcMiles(r);
+
+    const tr = document.createElement("tr");
+
+    tr.appendChild(logTdInputNoRerender(r, "date", "date", "", ()=> scheduleLogValidation()));
+    tr.appendChild(logTdInputNoRerender(r, "truckNo", "text", "Truck #", ()=> scheduleLogValidation()));
+    tr.appendChild(logTdRightInputNoRerender(r, "diesel", "number", "0", "0.01", ()=> scheduleLogValidation()));
+
+    const milesTd = document.createElement("td");
+    milesTd.className = "right";
+    milesTd.style.fontWeight = "800";
+    milesTd.textContent = r.totalMiles.toFixed(2);
+
+    tr.appendChild(logTdRightInputNoRerender(r, "mileageStart", "number", "0", "1", ()=>{
+      r.totalMiles = calcMiles(r);
+      milesTd.textContent = r.totalMiles.toFixed(2);
+      saveState();
+      scheduleLogValidation();
+    }));
+
+    tr.appendChild(logTdRightInputNoRerender(r, "mileageFinish", "number", "0", "1", ()=>{
+      r.totalMiles = calcMiles(r);
+      milesTd.textContent = r.totalMiles.toFixed(2);
+      saveState();
+      scheduleLogValidation();
+    }));
+
+    tr.appendChild(logTdInputNoRerender(r, "startTime", "time", "", ()=> scheduleLogValidation()));
+    tr.appendChild(logTdInputNoRerender(r, "endTime", "time", "", ()=> scheduleLogValidation()));
+    tr.appendChild(logTdRightInputNoRerender(r, "totalHours", "number", "0", "0.25", ()=> scheduleLogValidation()));
+
+    tr.appendChild(milesTd);
+
+    const actTd = document.createElement("td");
+    const del = document.createElement("button");
+    del.className = "ghost";
+    del.textContent = "Delete";
+    del.addEventListener("click", ()=>{
+      state.logbook.rows = state.logbook.rows.filter(x=>x.id !== r.id);
+      saveState();
+      renderLogbook();
+      renderLogValidation();
+    });
+    actTd.appendChild(del);
+    tr.appendChild(actTd);
+
+    log_tbody.appendChild(tr);
+  });
+
+  renderLogValidation();
+}
+
+function logTdInputNoRerender(row, key, type, placeholder="", afterChange=null){
+  const td = document.createElement("td");
+  const inp = document.createElement("input");
+  inp.type = type;
+  if(placeholder) inp.placeholder = placeholder;
+  inp.value = row[key] ?? "";
+  inp.addEventListener("input", e=>{
+    row[key] = e.target.value;
+    saveState();
+    if(afterChange) afterChange();
+  });
+  td.appendChild(inp);
+  return td;
+}
+function logTdRightInputNoRerender(row, key, type, placeholder="0", step="1", afterChange=null){
+  const td = document.createElement("td");
+  td.className = "right";
+  const inp = document.createElement("input");
+  inp.type = type;
+  inp.placeholder = placeholder;
+  inp.step = step;
+  inp.value = row[key] ?? "";
+  inp.addEventListener("input", e=>{
+    row[key] = e.target.value;
+    saveState();
+    if(afterChange) afterChange();
+  });
+  td.appendChild(inp);
+  return td;
+}
+
+function renderLogValidation(){
+  const box = byId("log_validation");
+  const msgs = [];
+
+  if(!String(state.logbook.driver||"").trim()) msgs.push("Logbook: Driver is blank.");
+  if(!String(state.logbook.truck||"").trim()) msgs.push("Logbook: Truck # is blank.");
+
+  state.logbook.rows.forEach((r,i)=>{
+    const n=i+1;
+    if(!String(r.date||"").trim()) msgs.push(`Row ${n}: Date missing.`);
+    if(!String(r.truckNo||"").trim()) msgs.push(`Row ${n}: Truck No missing.`);
+    const ms = num(r.mileageStart), mf = num(r.mileageFinish);
+    if((ms && mf) && mf < ms) msgs.push(`Row ${n}: Mileage Finish < Mileage Start.`);
+  });
+
+  if(msgs.length === 0){
+    box.style.display="block";
+    box.className="card ok";
+    box.textContent="All checks passed.";
+  } else {
+    box.style.display="block";
+    box.className="card warn";
+    box.innerHTML = "<div style='font-weight:900; margin-bottom:8px;'>Checks to review</div><ul style='margin:0; padding-left:18px; font-weight:700;'>" +
+      msgs.map(m=>`<li>${escapeHtml(m)}</li>`).join("") + "</ul>";
+  }
+}
+
+byId("add_log_row_btn").addEventListener("click", ()=>{
+  state.logbook.rows.push(defaultLogRow());
+  saveState();
+  renderLogbook();
+});
+byId("clear_log_btn").addEventListener("click", ()=>{
+  if(!confirm("Clear ALL logbook rows?")) return;
+  state.logbook.rows = [];
+  saveState();
+  renderLogbook();
+});
+byId("export_log_btn").addEventListener("click", ()=>{
+  const exportRows = state.logbook.rows.map((r,i)=>({
+    driver: state.logbook.driver,
+    truck_header: state.logbook.truck,
+    row_no: i+1,
+    date: r.date,
+    truck_no: r.truckNo,
+    diesel_usd: num(r.diesel),
+    mileage_start: num(r.mileageStart),
+    mileage_finish: num(r.mileageFinish),
+    start_time: r.startTime,
+    end_time: r.endTime,
+    total_hours: num(r.totalHours),
+    total_miles: calcMiles(r),
+    notes: state.logbook.notes
+  }));
+  downloadCSV(`logbook_${(state.logbook.truck||"TRUCK").replace(/\\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.csv`, exportRows);
+});
+
+/** Photos */
+const photo_input = byId("photo_input");
+const photo_tag = byId("photo_tag");
+const photo_related = byId("photo_related");
+
+byId("save_photo_btn").addEventListener("click", async ()=>{
+  const file = photo_input.files && photo_input.files[0];
+  if(!file){ alert("Choose a photo first."); return; }
+  const tag = photo_tag.value.trim();
+  const related = photo_related.value.trim();
+
+  const dataUrl = await fileToDataURL(file);
+  state.photos.unshift({
+    id: uid(),
+    createdAt: new Date().toISOString(),
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    tag,
+    related,
+    dataUrl
+  });
+  if(state.photos.length > 50) state.photos = state.photos.slice(0,50);
+
+  saveState();
+  photo_input.value = "";
+  photo_tag.value = "";
+  photo_related.value = "";
+  renderPhotos();
+});
+
+byId("clear_photos_btn").addEventListener("click", ()=>{
+  if(!confirm("Clear ALL saved photos on this device?")) return;
+  state.photos = [];
+  saveState();
+  renderPhotos();
+});
+
+byId("export_photos_index_btn").addEventListener("click", ()=>{
+  const rows = state.photos.map(p=>({
+    id: p.id,
+    created_at: p.createdAt,
+    tag: p.tag,
+    related: p.related,
+    filename: p.name,
+    mime: p.type,
+    bytes: p.size
+  }));
+  downloadCSV(`photos_index_${new Date().toISOString().slice(0,10)}.csv`, rows);
+});
+
+function renderPhotos(){
+  const grid = byId("photo_grid");
+  grid.innerHTML = "";
+  if(state.photos.length === 0){
+    grid.innerHTML = "<div class='muted'>No photos saved yet.</div>";
+    return;
+  }
+  state.photos.forEach(p=>{
+    const card = document.createElement("div");
+    card.className = "thumb";
+    const img = document.createElement("img");
+    img.src = p.dataUrl;
+    img.alt = p.tag || "Photo";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const left = document.createElement("div");
+    left.innerHTML = `<div style="font-weight:800;">${escapeHtml(p.tag || "Untitled")}</div><div class="muted">${escapeHtml(p.related || "")}</div>`;
+    const right = document.createElement("div");
+    const del = document.createElement("button");
+    del.className = "ghost";
+    del.textContent = "Delete";
+    del.addEventListener("click", ()=>{
+      state.photos = state.photos.filter(x=>x.id !== p.id);
+      saveState();
+      renderPhotos();
+    });
+    right.appendChild(del);
+
+    meta.appendChild(left);
+    meta.appendChild(right);
+
+    card.appendChild(img);
+    card.appendChild(meta);
+    grid.appendChild(card);
+  });
+}
+
+/** Backup/restore */
+byId("backup_btn").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `fem_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+});
+byId("restore_btn").addEventListener("click", ()=> byId("restore_file").click());
+byId("restore_file").addEventListener("change", async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  try{
+    const txt = await file.text();
+    const obj = JSON.parse(txt);
+    if(!obj || !obj.invoice || !obj.logbook) throw new Error("Invalid backup.");
+    Object.assign(state, obj);
+    saveState();
+    hydrateUI();
+    alert("Restore complete.");
+  } catch(err){
+    alert("Restore failed: " + err.message);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+byId("reset_all_btn").addEventListener("click", ()=>{
+  if(!confirm("RESET all app data? This cannot be undone.")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+});
+
+/** CSV helper */
+function downloadCSV(filename, rows){
+  const csv = toCSV(rows);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+function toCSV(rows){
+  if(!rows || rows.length === 0) return "";
+  const headers = Object.keys(rows[0]);
+  const escape = (v)=>{
+    const s = String(v ?? "");
+    if(/[",\\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const lines = [];
+  lines.push(headers.map(escape).join(","));
+  rows.forEach(r=>{
+    lines.push(headers.map(h=>escape(r[h])).join(","));
+  });
+  return lines.join("\\n");
+}
+
+/** misc helpers */
+function byId(id){ return document.getElementById(id); }
+function escapeHtml(str){
+  return String(str ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function fileToDataURL(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function hydrateUI(){
+  inv_driver.value = state.invoice.driver || "";
+  inv_truck.value = state.invoice.truck || "";
+  inv_week.value = state.invoice.week || "";
+  inv_default_contractor.value = state.invoice.defaultContractor || "";
+  inv_default_route.value = state.invoice.defaultRoute || "";
+  inv_fee_pct.value = state.invoice.feePct || "";
+  inv_fee_mode.value = state.invoice.feeMode || "subtotal";
+  inv_hours_override.value = state.invoice.hoursOverride || "";
+  inv_min8.value = state.invoice.min8 || "off";
+
+  log_driver.value = state.logbook.driver || "";
+  log_truck.value = state.logbook.truck || "";
+  log_notes.value = state.logbook.notes || "";
+
+  byId("set_company").value = state.settings.company || "FEM Trucking";
+  byId("set_currency").value = state.settings.currency || "USD";
+
+  renderInvoice();
+  renderLogbook();
+  renderPhotos();
+}
+
+hydrateUI();
+
+if(state.invoice.lines.length === 0){
+  state.invoice.lines.push(defaultNewLine(), defaultNewLine(), defaultNewLine());
+  saveState();
+  renderInvoice();
+}
+</script>
+</body>
+</html>
