@@ -573,13 +573,13 @@
 
 (function polyfills(){
   // String.prototype.replaceAll (older Safari)
-  if(!String.prototype.replaceAll){
-    String.prototype.replaceAll = function(search, replacement){
-      const target = String(this);
-      const s = String(search);
-      return target.split(s).join(String(replacement));
-    };
-  }
+if(!String.prototype.replaceAll){
+  String.prototype.replaceAll = function(search, replacement){
+    const target = String(this);
+    const s = String(search);
+    return target.split(s).join(String(replacement));
+  };
+}
   // CSS.escape (older Safari)
   if(!(window.CSS && CSS.escape)){
     window.CSS = window.CSS || {};
@@ -649,7 +649,12 @@ function loadState(){
 }
 
 function byId(id){ return document.getElementById(id); }
-function num(n){ return Number(n || 0); }
+function num(n){
+  if(n === null || n === undefined) return 0;
+  const s = String(n).trim();
+  if(!s) return 0;
+  return Number(s.replace(",", ".")) || 0;
+}
 function round2(n){ return Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100; }
 function uid(){ return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 function escapeHtml(str){
@@ -984,13 +989,21 @@ function refreshInvoiceRow(lineId){
   if(!line) return;
 
   const total = calcLineTotal(line);
+
+  // ✅ Update desktop row total (no rerender)
   const tr = inv_tbody.querySelector(`tr[data-line-id="${CSS.escape(lineId)}"]`);
   if(tr){
     const totalCell = tr.querySelector('[data-cell="total"]');
     if(totalCell) totalCell.textContent = money(total);
   }
 
-  renderInvoiceMobile();
+  // ✅ Update mobile card total (no rerender)
+  const card = inv_mobile_list.querySelector(`.lineCard[data-line-id="${CSS.escape(lineId)}"]`);
+  if(card){
+    const totalEl = card.querySelector('[data-role="line-total"]');
+    if(totalEl) totalEl.textContent = money(total);
+  }
+
   renderInvoiceKPIs();
   scheduleInvoiceValidation();
 }
@@ -999,7 +1012,7 @@ function renderInvoiceDesktop(){
   inv_tbody.innerHTML = "";
   state.invoice.lines.forEach((line, idx)=>{
     const tr = document.createElement("tr");
-    tr.dataset.lineId = line.id;
+    tr.setAttribute("data-line-id", line.id);
     tr.className = basisClass(line.basis);
 
     tr.appendChild(invTdInput(line, "date", "date", "", ()=> refreshInvoiceRow(line.id)));
@@ -1080,6 +1093,7 @@ function renderInvoiceMobile(){
 
     const card = document.createElement("div");
     card.className = "lineCard";
+    card.setAttribute("data-line-id", line.id); // ✅ lets refreshInvoiceRow find this card
 
     const header = document.createElement("div");
     header.className = "lineCardHeader";
@@ -1144,17 +1158,20 @@ function renderInvoiceMobile(){
       }, { step: qtyMeta.step, placeholder: qtyMeta.placeholder })));
     }
 
-    grid.appendChild(mobileField("Rate", inputEl("number", line.rate, v=>{
+    grid.appendChild(mobileField("Rate", inputEl("text", line.rate, v=>{
       line.rate=v;
       saveState();
       refreshInvoiceRow(line.id);
-    }, { step:"0.01", placeholder:"0" })));
+    }, { placeholder:"0.00", inputmode:"decimal", pattern:"[0-9]*[.,]?[0-9]*" })));
 
     card.appendChild(grid);
 
     const totals = document.createElement("div");
     totals.className = "lineTotals";
-    totals.innerHTML = `<div class="muted">Total</div><div class="totalVal">${money(total)}</div>`;
+    totals.innerHTML = `
+  	<div class="muted">Total</div>
+	<div class="totalVal" data-role="line-total">${money(total)}</div>
+    `;
     card.appendChild(totals);
 
     const acts = document.createElement("div");
@@ -1213,6 +1230,11 @@ function renderInvoiceMobile(){
     el.value = value ?? "";
     if(extra.step) el.step = extra.step;
     if(extra.placeholder) el.placeholder = extra.placeholder;
+
+    // ✅ Better mobile keyboard behavior
+    if(extra.inputmode) el.setAttribute("inputmode", extra.inputmode);
+    if(extra.pattern) el.setAttribute("pattern", extra.pattern);
+
     el.addEventListener("input", ()=> onChange(el.value));
     return el;
   }
@@ -1229,15 +1251,25 @@ function renderInvoiceMobile(){
   }
 }
 
+
 function renderInvoiceKPIs(){
   const lines = state.invoice.lines;
 
-  const hoursSumRaw = round2(lines.reduce((a,l)=>a + num(l.hours), 0));
+  // Hours billed (respects 8-hour minimum toggle)
+  const hoursSumBilled = round2(lines
+    .filter(l=>l.basis==="hours")
+    .reduce((a,l)=>{
+      let h = num(l.hours);
+      if(state.invoice.min8==="on" && h>0 && h<8) h = 8;
+      return a + h;
+    }, 0)
+  );
+
   const loadsSum = lines.reduce((a,l)=>a + Math.round(num(l.loads)), 0);
   const tonsSum  = round2(lines.reduce((a,l)=>a + num(l.tons), 0));
   const subtotal = round2(lines.reduce((a,l)=>a + calcLineTotal(l), 0));
 
-  let hoursForFooter = hoursSumRaw;
+  let hoursForFooter = hoursSumBilled; // 👈 use billed hours for KPI display
   if(String(state.invoice.hoursOverride || "").trim() !== ""){
     hoursForFooter = round2(num(state.invoice.hoursOverride));
   }
@@ -1358,9 +1390,19 @@ function exportInvoiceCSV(){
   const { feePct, feeBase, fee } = computeFee(subtotal);
   const totalDue = round2(subtotal + fee);
 
-  const hoursSumRaw = round2(lines.reduce((a,l)=>a + num(l.hours), 0));
-  let hoursFooter = hoursSumRaw;
-  if(String(state.invoice.hoursOverride||"").trim() !== "") hoursFooter = round2(num(state.invoice.hoursOverride));
+  const hoursSumBilled = round2(lines
+    .filter(l=>l.basis==="hours")
+    .reduce((a,l)=>{
+      let h = num(l.hours);
+      if(state.invoice.min8==="on" && h>0 && h<8) h = 8;
+      return a + h;
+    }, 0)
+  );
+
+  let hoursFooter = hoursSumBilled;
+  if(String(state.invoice.hoursOverride||"").trim() !== "") {
+    hoursFooter = round2(num(state.invoice.hoursOverride));
+  }
 
   const invoiceId = `${safeFilePart(state.invoice.truck||"TRUCK")}_${safeFilePart(state.invoice.driver||"DRIVER")}_${new Date().toISOString().slice(0,10)}`;
   const fname = `invoice_${invoiceId}.csv`;
