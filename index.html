@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FEM Trucking – Dispatch to Invoice</title>
+  <title>FEM Trucking – San Antonio & Surrounding Areas</title>
 
   <style>
     :root{
@@ -29,10 +29,99 @@
       position:sticky; top:0; z-index:10;
       background:var(--black); color:#fff;
       padding:14px var(--pad);
+      padding-left:  calc(var(--pad) + 48px); /* balance for true centering */
+      padding-right: calc(var(--pad) + 48px); /* leaves room for gear */
       display:flex; align-items:center; gap:12px;
       border-bottom:1px solid rgba(255,255,255,.08);
     }
-    .brand{ display:flex; align-items:center; gap:10px; min-width: 220px;}
+
+/* Gear button on far right */
+#gearBtn{
+  position:absolute;
+  right: var(--pad);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+
+  -webkit-appearance: none;
+  appearance: none;
+
+  padding: 0;
+  line-height: 0;
+}
+
+#gearBtn:hover{ background: rgba(255,255,255,.12); }
+#gearBtn svg{ width:20px; height:20px; }
+
+/* Settings modal */
+.modalBackdrop{
+  position:fixed;
+  inset:0;
+  background: rgba(0,0,0,.55);
+  display:none;
+  z-index: 9999;
+  padding: 18px;
+}
+.modalBackdrop.open{ display:flex; align-items:flex-start; justify-content:center; }
+.modal{
+  width: min(720px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 18px 60px rgba(0,0,0,.25);
+  overflow:hidden;
+}
+.modalHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background:#fafafa;
+}
+.modalHeader strong{ font-weight:900; }
+.modalBody{ padding: 14px; }
+.modalClose{
+  border:1px solid #d1d5db;
+  background:#fff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 900;
+  cursor:pointer;
+}
+details.advanced{
+  margin-top: 10px;
+  border:1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background:#fff;
+}
+details.advanced summary{
+  cursor:pointer;
+  font-weight:900;
+}
+
+/* Center the header content (desktop + mobile) */
+.headerCentered{
+  position: relative;   /* enables absolute gear */
+  justify-content: center;
+}
+
+.headerCentered .brand{
+  min-width:auto;           /* remove left anchoring */
+  justify-content:center;
+}
+    .brand{ display:flex; align-items:center; gap:10px; }
     .brand img{
       width:72px; height:72px; border-radius:16px; object-fit:cover;
       border:1px solid rgba(255,255,255,.12);
@@ -93,6 +182,16 @@
     .muted{ color:var(--muted); font-size:12px; }
 
     .actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    
+    /* Bottom action bars */
+    .actions.actionsBottom button{
+      flex: 1 1 calc(50% - 10px);
+    }
+    .actions.actionsBottom button.primary,
+    .actions.actionsBottom button.danger{
+      flex: 1 1 100%;
+    }
+
     button{
       padding:10px 12px;
       border-radius:12px;
@@ -180,12 +279,28 @@
 
     .mobileOnly{ display:none; }
     @media(max-width: 760px){
-      header{ padding:10px var(--pad); gap:10px; }
+      header{
+        padding:10px var(--pad);
+        padding-left:  calc(var(--pad) + 44px); /* balance for true centering */
+        padding-right: calc(var(--pad) + 44px); /* room for smaller gear */
+        gap:10px;
+      }
+
+      #gearBtn{
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        border-radius: 10px;
+      }
+      #gearBtn svg{
+        width: 18px;
+        height: 18px;
+      }
+
       .brand{ min-width:auto; gap:8px; }
       .brand img{ width:44px; height:44px; border-radius:12px; }
       .brand .bname{ font-size:11px; }
       .brand .bsub{ font-size:10px; }
-      header div[style*="min-width:220px"]{ display:none !important; }
 
       .headcenter h1{ font-size:14px; }
       .headcenter .sub{ font-size:11px; }
@@ -277,7 +392,7 @@
 </head>
 
 <body>
-<header>
+<header class="headerCentered">
   <div class="brand">
     <img src="fem_trucking_logo.jpg" alt="FEM Trucking Logo" onerror="this.style.display='none';" />
     <div class="btxt">
@@ -286,12 +401,14 @@
     </div>
   </div>
 
-  <div class="headcenter">
-    <h1>FEM Trucking – Dispatch to Invoice</h1>
-    <div class="sub">Invoice Sheet + Driver Logbook • Offline save • CSV export</div>
-  </div>
-
-  <div style="min-width:220px;"></div>
+  <!-- Gear button (far right) -->
+  <button id="gearBtn" type="button" aria-label="Settings">
+    <!-- Inline SVG gear icon -->
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/>
+      <path d="M19.4 15a7.9 7.9 0 0 0 .1-1l2-1.5-2-3.4-2.4 1a8.3 8.3 0 0 0-1.7-1l-.4-2.6H10l-.4 2.6c-.6.2-1.2.6-1.7 1l-2.4-1-2 3.4 2 1.5a7.9 7.9 0 0 0 .1 1 7.9 7.9 0 0 0-.1 1l-2 1.5 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.2 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.5a7.9 7.9 0 0 0 .1-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+  </button>
 </header>
 
 <main>
@@ -299,7 +416,6 @@
     <button class="tabbtn active" data-tab="invoice">Invoice Sheet</button>
     <button class="tabbtn" data-tab="logbook">Driver Logbook</button>
     <button class="tabbtn" data-tab="photos">Tickets & Receipts</button>
-    <button class="tabbtn" data-tab="settings">Settings</button>
   </div>
 
   <!-- ===================== INVOICE ===================== -->
@@ -352,19 +468,10 @@
     </div>
 
     <div class="card">
-      <div class="actions">
-        <button class="primary" id="add_row_btn">+ Add Line</button>
-        <button id="dup_last_btn">Duplicate Last</button>
-        <button class="danger" id="clear_lines_btn">Clear Lines</button>
-        <button id="export_invoice_btn">Export Invoice CSV</button>
-        <button id="email_invoice_btn">Email Cecilia (open email)</button>
-      </div>
 
-      <div class="muted" style="margin-top:8px;">
-        Exports a single CSV with (1) invoice lines table and (2) totals table below it.
+      <div class="muted" style="margin-bottom:8px;">
+        Invoice lines (add rows, then export). Exports one CSV with (1) lines and (2) totals below it.
       </div>
-
-      <div style="height:12px"></div>
 
       <div class="tablewrap">
         <table>
@@ -385,12 +492,23 @@
         </table>
       </div>
 
-      <div id="inv_mobile_list" class="mobileOnly"></div>
-    </div>
+  <div id="inv_mobile_list" class="mobileOnly"></div>
 
-    <div class="card">
-      <div class="row cols4">
-        <div>
+  <div style="height:12px"></div>
+
+  <!-- Actions moved UNDER the rows -->
+  <div class="actions actionsBottom">
+    <button class="primary" id="add_row_btn">+ Add Line</button>
+    <button id="dup_last_btn">Duplicate Last</button>
+    <button class="danger" id="clear_lines_btn">Clear Lines</button>
+    <button id="export_invoice_btn">Export Invoice CSV</button>
+    <button id="email_invoice_btn">Email Cecilia (open email)</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row cols4">
+    <div>
           <label>% Fee (optional)</label>
           <input id="inv_fee_pct" type="number" min="0" step="0.01" placeholder="e.g., 10 for 10%" />
           <div class="muted">Added to subtotal (not deducted).</div>
@@ -445,39 +563,48 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="actions">
-        <button class="primary" id="add_log_row_btn">+ Add Log Row</button>
-        <button class="danger" id="clear_log_btn">Clear Log Rows</button>
-        <button id="export_log_btn">Export Logbook CSV</button>
-        <button id="email_log_btn">Email Cecilia (open email)</button>
-      </div>
+<!-- (removed duplicate logbook card) -->
 
-      <div style="height:12px"></div>
+   <div class="card">
 
-      <div class="tablewrap">
-        <table style="min-width:1180px;">
-          <thead>
-            <tr>
-              <th>Start Date</th>
-              <th>Start Time</th>
-              <th>End Date</th>
-              <th>End Time</th>
-              <th>Truck No</th>
-              <th class="right">Diesel ($)</th>
-              <th class="right">Mileage Start</th>
-              <th class="right">Mileage Finish</th>
-              <th class="right">Total Hours</th>
-              <th class="right">Total Miles</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="log_tbody"></tbody>
-        </table>
-      </div>
+     <div class="muted" style="margin-bottom:8px;">
+       Log rows (enter start/end, mileage, diesel, hours). Export when ready.
+     </div>
 
-      <div id="log_mobile_list" class="mobileOnly"></div>
-    </div>
+     <div class="tablewrap">
+       <table style="min-width:1180px;">
+         <thead>
+           <tr>
+             <th>Start Date</th>
+             <th>Start Time</th>
+             <th>End Date</th>
+             <th>End Time</th>
+             <th>Truck No</th>
+             <th class="right">Diesel ($)</th>
+             <th class="right">Mileage Start</th>
+             <th class="right">Mileage Finish</th>
+             <th class="right">Total Hours</th>
+             <th class="right">Total Miles</th>
+             <th>Actions</th>
+           </tr>
+         </thead>
+         <tbody id="log_tbody"></tbody>
+       </table>
+     </div>
+
+     <div id="log_mobile_list" class="mobileOnly"></div>
+
+     <div style="height:12px"></div>
+
+     <!-- Actions moved UNDER the rows -->
+     <div class="actions actionsBottom">
+       <button class="primary" id="add_log_row_btn">+ Add Log Row</button>
+       <button class="danger" id="clear_log_btn">Clear Log Rows</button>
+       <button id="export_log_btn">Export Logbook CSV</button>
+       <button id="email_log_btn">Email Cecilia (open email)</button>
+     </div>
+
+   </div>
 
     <div id="log_validation" class="card" style="display:none;"></div>
   </section>
@@ -519,8 +646,17 @@
   </section>
 
   <!-- ===================== SETTINGS ===================== -->
-  <section id="settings" class="tab" style="display:none;">
-    <div class="card">
+</main>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal">
+    <div class="modalHeader">
+      <strong id="settingsTitle">Settings</strong>
+      <button class="modalClose" id="settingsCloseBtn" type="button">Close</button>
+    </div>
+
+    <div class="modalBody">
       <div class="row cols2">
         <div>
           <label>Company</label>
@@ -538,29 +674,33 @@
 
       <div class="row cols2">
         <div>
-          <label>Data controls</label>
-          <div class="actions">
-            <button id="backup_btn">Download Backup JSON</button>
-            <button id="restore_btn">Restore Backup JSON</button>
-            <input id="restore_file" type="file" accept="application/json" style="display:none;" />
-          </div>
-          <div class="muted">Backup is helpful before big edits.</div>
-        </div>
-        <div>
           <label>Reset everything</label>
-          <button class="danger" id="reset_all_btn">Reset App Data</button>
+          <button class="danger" id="reset_all_btn" type="button">Reset App Data</button>
           <div class="muted">Clears invoice lines, logbook, and photos from this browser.</div>
         </div>
-      </div>
-    </div>
 
-    <div class="card">
+        <div>
+          <details class="advanced">
+            <summary>Advanced (Admin)</summary>
+            <div style="height:10px"></div>
+            <div class="actions">
+              <button id="backup_btn" type="button">Download Backup JSON</button>
+              <button id="restore_btn" type="button">Restore Backup JSON</button>
+              <input id="restore_file" type="file" accept="application/json" style="display:none;" />
+            </div>
+            <div class="muted" style="margin-top:8px;">Use only if you know what you’re doing.</div>
+          </details>
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
       <div class="warn" style="font-size:12px;">
         v1 is local-only. Next step: add cloud sync so drivers can submit from phones and admin can export centrally.
       </div>
     </div>
-  </section>
-</main>
+  </div>
+</div>
 
 <script>
 /* ======================================================
@@ -681,6 +821,31 @@ function setInputValue(el, v){
   const nv = String(v ?? "");
   if(el.value !== nv) el.value = nv;
 }
+
+/* Settings modal (gear icon) */
+const gearBtn = document.getElementById("gearBtn");
+const settingsModal = document.getElementById("settingsModal");
+const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+
+function openSettings(){
+  settingsModal.classList.add("open");
+}
+function closeSettings(){
+  settingsModal.classList.remove("open");
+}
+
+gearBtn.addEventListener("click", openSettings);
+settingsCloseBtn.addEventListener("click", closeSettings);
+
+// click outside modal closes
+settingsModal.addEventListener("click", (e)=>{
+  if(e.target === settingsModal) closeSettings();
+});
+
+// Esc closes
+document.addEventListener("keydown", (e)=>{
+  if(e.key === "Escape" && settingsModal.classList.contains("open")) closeSettings();
+});
 
 /* Tabs */
 document.querySelectorAll(".tabbtn").forEach(btn=>{
