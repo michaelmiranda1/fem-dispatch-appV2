@@ -242,11 +242,11 @@
 
       .brand{ display:flex; align-items:center; gap:10px; }
       .brand img{
-        width:72px; height:72px; border-radius:16px; object-fit:cover;
+        width:56px; height:56px; border-radius:14px; object-fit:cover;
         border:1px solid rgba(255,255,255,.12);
         background:#0b0b0b;
         flex:0 0 auto;
-      }
+    }
       .brand .btxt{ line-height:1.1; }
       .brand .bname{ font-weight:900; font-size:12px; }
       .brand .bsub{ font-size:11px; opacity:.85; }
@@ -260,10 +260,10 @@
       main{
         max-width: 1400px;
         margin: 0 auto;
-        padding: calc(6px + var(--headerH)) 16px 16px;
+        padding: calc(0px + var(--headerH)) 16px 16px;
       }
 
-      .tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 10px; }
+      .tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
       .tabbtn{
         border:1px solid #ddd; background:#fff;
         padding:10px 12px;
@@ -414,7 +414,7 @@
 
         /* push content down so it doesn't hide under fixed header */
         main{
-          padding: calc(2px + var(--headerH)) 10px 130px;
+          padding: calc(0px + var(--headerH)) 10px 130px;
         }
 
         .tabs{ display:none; }
@@ -1043,14 +1043,14 @@
       Header height → CSS var (--headerH)
       (Keeps main padding synced to the fixed header height)
       ====================================================== */
-    function setHeaderH(){
-      const header = document.querySelector("header");
-      const h = header ? header.offsetHeight : 0;
-      document.documentElement.style.setProperty("--headerH", h + "px");
-    }
+      function setHeaderH(){
+        const header = document.querySelector("header");
+        const h = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+        document.documentElement.style.setProperty("--headerH", h + "px");
+      }
 
-    window.addEventListener("load", setHeaderH);
-    window.addEventListener("orientationchange", setHeaderH);
+      window.addEventListener("load", setHeaderH);
+      window.addEventListener("orientationchange", setHeaderH);
 
     let resizeT;
       window.addEventListener("resize", ()=>{
@@ -1059,6 +1059,8 @@
       });
 
     setHeaderH();
+    // run again after layout settles (fonts/images)
+    requestAnimationFrame(()=>requestAnimationFrame(setHeaderH));
 
     // Recalc header height after logo image loads (prevents extra gap on iOS)
     const logoImg = document.querySelector("header .brand img");
